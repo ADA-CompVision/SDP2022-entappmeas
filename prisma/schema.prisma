@@ -7,6 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  USER
+  BUSINESS
+  ADMIN
+}
+
 model User {
   id        Int    @id @default(autoincrement())
   firstName String @db.VarChar(256)
@@ -16,4 +22,37 @@ model User {
   email     String @unique() @db.VarChar(256)
   username  String @unique() @db.VarChar(256)
   password  String @db.VarChar(256)
+  role      Role?  @default(USER)
+}
+
+model Category {
+  id         Int         @id @default(autoincrement())
+  name       String      @unique @db.VarChar(256)
+  attributes Attribute[]
+  Product    Product[]
+}
+
+model Product {
+  id               Int                @id @default(autoincrement())
+  name             String             @db.VarChar(256)
+  description      String             @db.Text
+  category         Category           @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId       Int
+  ProductAttribute ProductAttribute[]
+}
+
+model Attribute {
+  id               Int                @id @default(autoincrement())
+  name             String             @unique @db.VarChar(256)
+  categories       Category[]
+  ProductAttribute ProductAttribute[]
+}
+
+model ProductAttribute {
+  id          Int       @id @default(autoincrement())
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attribute   Attribute @relation(fields: [attributeId], references: [id], onDelete: SetDefault)
+  productId   Int
+  attributeId Int
+  value       String    @db.Text
 }
