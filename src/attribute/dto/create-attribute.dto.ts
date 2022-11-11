@@ -6,8 +6,8 @@ export class CreateAttributeDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ isArray: true, type: "number", required: false })
+  @ApiProperty({ isArray: true, type: "string", required: false })
   @IsOptional()
   @IsArray()
-  categories: number[];
+  categories: string[];
 }

@@ -3,15 +3,15 @@ import { Type } from "class-transformer";
 import {
   IsArray,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
+  IsString,
   ValidateNested,
 } from "class-validator";
 
 class ProductAttribute {
   @ApiProperty()
-  @IsNumber()
-  id: number;
+  @IsString()
+  attributeId: string;
 
   @ApiProperty()
   @IsNotEmpty()
@@ -28,8 +28,8 @@ export class CreateProductDto {
   description: string;
 
   @ApiProperty()
-  @IsNumber()
-  categoryId: number;
+  @IsString()
+  categoryId: string;
 
   @ApiProperty({ isArray: true, type: ProductAttribute, required: false })
   @IsOptional()

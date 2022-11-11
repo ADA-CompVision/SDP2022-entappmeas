@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import { PrismaService } from "src/utils/prisma.service";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "src/prisma/prisma.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
 
@@ -13,23 +14,21 @@ export class ProductService {
     return this.prisma.product.create({
       data: {
         ...rest,
-        ProductAttribute: {
+        productAttributes: {
           createMany: {
-            data: attributes?.map(({ id, value }) => ({
-              attributeId: id,
-              value,
-            })),
+            data:
+              attributes?.map(({ attributeId, value }) => ({
+                attributeId,
+                value,
+              })) || [],
           },
         },
       },
       include: {
-        ProductAttribute: {
-          include: {
-            attribute: {
-              select: {
-                name: true,
-              },
-            },
+        productAttributes: {
+          select: {
+            value: true,
+            attribute: true,
           },
         },
       },
@@ -38,75 +37,87 @@ export class ProductService {
 
   async findAll() {
     return this.prisma.product.findMany({
-      include: {
-        ProductAttribute: {
-          include: {
-            attribute: {
-              select: {
-                name: true,
-              },
-            },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        category: true,
+        productAttributes: {
+          select: {
+            value: true,
+            attribute: true,
           },
         },
       },
     });
   }
 
-  async findOne(id: number) {
+  async findOne(productWhereUniqueInput: Prisma.ProductWhereUniqueInput) {
     return this.prisma.product.findUnique({
-      where: { id },
-      include: {
-        ProductAttribute: {
-          include: {
-            attribute: {
-              select: {
-                name: true,
-              },
-            },
+      where: productWhereUniqueInput,
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        category: true,
+        productAttributes: {
+          select: {
+            value: true,
+            attribute: true,
           },
         },
       },
     });
   }
 
-  update(id: number, updateProductDto: UpdateProductDto) {
+  async update(
+    productWhereUniqueInput: Prisma.ProductWhereUniqueInput,
+    updateProductDto: UpdateProductDto,
+  ) {
     const { attributes, ...rest } = updateProductDto;
 
     return this.prisma.product.update({
-      where: { id },
+      where: productWhereUniqueInput,
       data: {
         ...rest,
-        ProductAttribute: {
-          connect: attributes?.map(({ id }) => ({
-            id,
-          })),
+        productAttributes: {
+          deleteMany: {},
+          createMany: {
+            data:
+              attributes?.map(({ attributeId, value }) => ({
+                attributeId,
+                value,
+              })) || [],
+          },
         },
       },
-      include: {
-        ProductAttribute: {
-          include: {
-            attribute: {
-              select: {
-                name: true,
-              },
-            },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        category: true,
+        productAttributes: {
+          select: {
+            value: true,
+            attribute: true,
           },
         },
       },
     });
   }
 
-  delete(id: number) {
+  async delete(productWhereUniqueInput: Prisma.ProductWhereUniqueInput) {
     return this.prisma.product.delete({
-      where: { id },
-      include: {
-        ProductAttribute: {
-          include: {
-            attribute: {
-              select: {
-                name: true,
-              },
-            },
+      where: productWhereUniqueInput,
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        category: true,
+        productAttributes: {
+          select: {
+            value: true,
+            attribute: true,
           },
         },
       },

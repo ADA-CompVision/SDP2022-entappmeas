@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   Post,
   Request,
@@ -20,7 +21,7 @@ export class AuthController {
 
   @Public()
   @Post("register")
-  register(@Body() createUserDto: CreateUserDto) {
+  async register(@Body() createUserDto: CreateUserDto) {
     return this.authService.register(createUserDto);
   }
 
@@ -29,7 +30,12 @@ export class AuthController {
   @Post("login")
   @HttpCode(200)
   @ApiBody({ type: LoginUserDto })
-  login(@Request() req) {
+  async login(@Request() req) {
     return this.authService.login(req.user);
+  }
+
+  @Get("account")
+  async getAccount(@Request() req) {
+    return req.user;
   }
 }

@@ -26,18 +26,18 @@ export class CategoryController {
   @Roles(Role.ADMIN)
   @UseGuards(RoleGuard)
   @Post()
-  create(@Body() createCategoryDto: CreateCategoryDto) {
+  async create(@Body() createCategoryDto: CreateCategoryDto) {
     return this.categoryService.create(createCategoryDto);
   }
 
   @Get()
-  findAll() {
+  async findAll() {
     return this.categoryService.findAll();
   }
 
   @Get(":id")
   async findOne(@Param("id") id: string) {
-    const category = await this.categoryService.findOne(+id);
+    const category = await this.categoryService.findOne({ id });
 
     if (!category) {
       throw new NotFoundException("Category not found");
@@ -53,25 +53,19 @@ export class CategoryController {
     @Param("id") id: string,
     @Body() updateCategoryDto: UpdateCategoryDto,
   ) {
-    const category = await this.categoryService.findOne(+id);
-
-    if (!category) {
-      throw new NotFoundException("Category not found");
-    }
-
-    return this.categoryService.update(+id, updateCategoryDto);
+    return this.categoryService.update({ id }, updateCategoryDto);
   }
 
   @Roles(Role.ADMIN)
   @UseGuards(RoleGuard)
   @Delete(":id")
   async delete(@Param("id") id: string) {
-    const category = await this.categoryService.findOne(+id);
+    const category = await this.categoryService.findOne({ id });
 
     if (!category) {
       throw new NotFoundException("Category not found");
     }
 
-    return this.categoryService.delete(+id);
+    return this.categoryService.delete({ id });
   }
 }

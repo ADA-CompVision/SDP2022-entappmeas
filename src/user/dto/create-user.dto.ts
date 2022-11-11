@@ -6,6 +6,7 @@ import {
   IsIn,
   IsMobilePhone,
   IsNotEmpty,
+  IsOptional,
   MaxLength,
   MinLength,
 } from "class-validator";
@@ -24,7 +25,7 @@ export class CreateUserDto {
   address: string;
 
   @ApiProperty()
-  @IsMobilePhone()
+  @IsMobilePhone("az-AZ")
   phone: string;
 
   @ApiProperty()
@@ -51,6 +52,7 @@ export class CreateUserDto {
   @ApiProperty({
     enum: Role,
   })
+  @IsOptional()
   @IsIn(Object.values(Role))
   role: Role;
 }

@@ -3,11 +3,16 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   Patch,
   Post,
+  UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { Role } from "@prisma/client";
+import { Roles } from "src/decorators/roles.decorator";
+import { RoleGuard } from "src/guards/role.guard";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
 import { ProductService } from "./product.service";
@@ -18,28 +23,55 @@ import { ProductService } from "./product.service";
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
+  @Roles(Role.ADMIN)
+  @UseGuards(RoleGuard)
   @Post()
-  create(@Body() createProductDto: CreateProductDto) {
+  async create(@Body() createProductDto: CreateProductDto) {
     return this.productService.create(createProductDto);
   }
 
   @Get()
-  findAll() {
+  async findAll() {
     return this.productService.findAll();
   }
 
   @Get(":id")
-  findOne(@Param("id") id: string) {
-    return this.productService.findOne(+id);
+  async findOne(@Param("id") id: string) {
+    const product = await this.productService.findOne({ id });
+
+    if (!product) {
+      throw new NotFoundException("Attribute not found");
+    }
+
+    return this.productService.findOne({ id });
   }
 
+  @Roles(Role.ADMIN)
+  @UseGuards(RoleGuard)
   @Patch(":id")
-  update(@Param("id") id: string, @Body() updateProductDto: UpdateProductDto) {
-    return this.productService.update(+id, updateProductDto);
+  async update(
+    @Param("id") id: string,
+    @Body() updateProductDto: UpdateProductDto,
+  ) {
+    const product = await this.productService.findOne({ id });
+
+    if (!product) {
+      throw new NotFoundException("Attribute not found");
+    }
+
+    return this.productService.update({ id }, updateProductDto);
   }
 
+  @Roles(Role.ADMIN)
+  @UseGuards(RoleGuard)
   @Delete(":id")
-  remove(@Param("id") id: string) {
-    return this.productService.delete(+id);
+  async delete(@Param("id") id: string) {
+    const product = await this.productService.findOne({ id });
+
+    if (!product) {
+      throw new NotFoundException("Attribute not found");
+    }
+
+    return this.productService.delete({ id });
   }
 }

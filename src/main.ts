@@ -6,6 +6,7 @@ import { AppModule } from "./app.module";
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  app.setGlobalPrefix("api");
   app.enableCors();
   app.useGlobalPipes(
     new ValidationPipe({
@@ -16,14 +17,14 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle("SDP2022 ENTAPPMEAS")
-    .setDescription("SDP2022 ENTAPPMEAS API documentation")
+    .setDescription("SDP2022 ENTAPPMEAS API Documentation")
     .setVersion("1.0.0")
     .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
 
-  SwaggerModule.setup("api", app, document);
+  SwaggerModule.setup("swagger", app, document);
 
   await app.listen(3000);
 }

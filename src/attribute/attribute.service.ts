@@ -1,5 +1,6 @@
-import { Injectable } from "@nestjs/common";
-import { PrismaService } from "src/utils/prisma.service";
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "src/prisma/prisma.service";
 import { CreateAttributeDto } from "./dto/create-attribute.dto";
 import { UpdateAttributeDto } from "./dto/update-attribute.dto";
 
@@ -14,7 +15,7 @@ export class AttributeService {
       data: {
         ...rest,
         categories: {
-          connect: categories?.map((value) => ({ id: value })),
+          connect: categories?.map((id) => ({ id })),
         },
       },
       include: {
@@ -24,24 +25,38 @@ export class AttributeService {
   }
 
   async findAll() {
-    return this.prisma.attribute.findMany({ include: { categories: true } });
+    return this.prisma.attribute.findMany({
+      include: {
+        categories: true,
+      },
+    });
   }
 
-  async findOne(id: number) {
+  async findOne(attributeWhereUniqueInput: Prisma.AttributeWhereUniqueInput) {
     return this.prisma.attribute.findUnique({
-      where: { id },
+      where: attributeWhereUniqueInput,
       include: { categories: true },
     });
   }
 
-  async update(id: number, updateAttributeDto: UpdateAttributeDto) {
+  async update(
+    attributeWhereUniqueInput: Prisma.AttributeWhereUniqueInput,
+    updateAttributeDto: UpdateAttributeDto,
+  ) {
+    const attribute = await this.findOne(attributeWhereUniqueInput);
+
+    if (!attribute) {
+      throw new NotFoundException("Attribute not found");
+    }
+
     const { categories, ...rest } = updateAttributeDto;
 
     return this.prisma.attribute.update({
-      where: { id },
+      where: attributeWhereUniqueInput,
       data: {
         ...rest,
         categories: {
+          disconnect: attribute.categories?.map(({ id }) => ({ id })),
           connect: categories?.map((value) => ({ id: value })),
         },
       },
@@ -51,9 +66,9 @@ export class AttributeService {
     });
   }
 
-  async delete(id: number) {
+  async delete(attributeWhereUniqueInput: Prisma.AttributeWhereUniqueInput) {
     return this.prisma.attribute.delete({
-      where: { id },
+      where: attributeWhereUniqueInput,
       include: {
         categories: true,
       },

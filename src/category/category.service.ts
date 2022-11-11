@@ -1,5 +1,6 @@
-import { Injectable } from "@nestjs/common";
-import { PrismaService } from "src/utils/prisma.service";
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "src/prisma/prisma.service";
 import { CreateCategoryDto } from "./dto/create-category.dto";
 import { UpdateCategoryDto } from "./dto/update-category.dto";
 
@@ -8,25 +9,57 @@ export class CategoryService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createCategoryDto: CreateCategoryDto) {
-    return this.prisma.category.create({ data: createCategoryDto });
-  }
+    const { attributes, ...rest } = createCategoryDto;
 
-  async findAll() {
-    return this.prisma.category.findMany();
-  }
-
-  async findOne(id: number) {
-    return this.prisma.category.findUnique({ where: { id } });
-  }
-
-  async update(id: number, updateCategoryDto: UpdateCategoryDto) {
-    return this.prisma.category.update({
-      where: { id },
-      data: updateCategoryDto,
+    return this.prisma.category.create({
+      data: {
+        ...rest,
+        attributes: {
+          connect: attributes?.map((id) => ({ id })),
+        },
+      },
+      include: {
+        attributes: true,
+      },
     });
   }
 
-  async delete(id: number) {
-    return this.prisma.category.delete({ where: { id } });
+  async findAll() {
+    return this.prisma.category.findMany({ include: { attributes: true } });
+  }
+
+  async findOne(categoryWhereUniqueInput: Prisma.CategoryWhereUniqueInput) {
+    return this.prisma.category.findUnique({
+      where: categoryWhereUniqueInput,
+      include: { attributes: true },
+    });
+  }
+
+  async update(
+    categoryWhereUniqueInput: Prisma.CategoryWhereUniqueInput,
+    updateCategoryDto: UpdateCategoryDto,
+  ) {
+    const category = await this.findOne(categoryWhereUniqueInput);
+
+    if (!category) {
+      throw new NotFoundException("Category not found");
+    }
+
+    const { attributes, ...rest } = updateCategoryDto;
+
+    return this.prisma.category.update({
+      where: categoryWhereUniqueInput,
+      data: {
+        ...rest,
+        attributes: {
+          disconnect: category.attributes?.map(({ id }) => ({ id })),
+          connect: attributes?.map((value) => ({ id: value })),
+        },
+      },
+    });
+  }
+
+  async delete(categoryWhereUniqueInput: Prisma.CategoryWhereUniqueInput) {
+    return this.prisma.category.delete({ where: categoryWhereUniqueInput });
   }
 }
