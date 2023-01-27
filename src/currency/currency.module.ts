@@ -1,9 +1,9 @@
 import { Module } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
-import { AttributeController } from "./attribute.controller";
+import { CurrencyController } from "./currency.controller";
 
 @Module({
-  controllers: [AttributeController],
+  controllers: [CurrencyController],
   providers: [PrismaService],
 })
-export class AttributeModule {}
+export class CurrencyModule {}

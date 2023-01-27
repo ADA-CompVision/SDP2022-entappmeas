@@ -10,8 +10,8 @@ import {
 import { ApiBody, ApiTags } from "@nestjs/swagger";
 import { Public } from "src/decorators/public.decorator";
 import { LocalAuthGuard } from "src/guards/local-auth.guard";
+import { LoginApiBody } from "src/user/api-properties";
 import { CreateUserDto } from "src/user/dto/create-user.dto";
-import { LoginUserDto } from "src/user/dto/login-user.dto";
 import { AuthService } from "./auth.service";
 
 @ApiTags("Auth")
@@ -29,7 +29,7 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @Post("login")
   @HttpCode(200)
-  @ApiBody({ type: LoginUserDto })
+  @ApiBody({ type: LoginApiBody })
   async login(@Request() req) {
     return this.authService.login(req.user);
   }

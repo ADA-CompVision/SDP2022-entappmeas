@@ -13,6 +13,11 @@ enum Role {
   ADMIN
 }
 
+enum DiscountType {
+  PERCENTAGE_TOTAL
+  FIXED_TOTAL
+}
+
 model User {
   id        Int    @id @default(autoincrement())
   firstName String @db.VarChar(256)
@@ -45,7 +50,9 @@ model Product {
   description       String             @db.Text
   categoryId        String
   category          Category           @relation(fields: [categoryId], references: [id])
+  prices            Price[]
   productAttributes ProductAttribute[]
+  Cart              Cart[]
 }
 
 model ProductAttribute {
@@ -54,5 +61,45 @@ model ProductAttribute {
   productId   String
   attributeId String
   product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  attribute   Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  attribute   Attribute @relation(fields: [attributeId], references: [id])
+}
+
+model Currency {
+  id      String  @id @default(cuid())
+  symbol  String  @db.VarChar(256)
+  acronym String  @db.VarChar(256)
+  name    String  @db.VarChar(256)
+  prices  Price[]
+}
+
+model Price {
+  id         String    @id @default(cuid())
+  productId  String
+  currencyId String
+  value      Float     @db.DoublePrecision
+  startDate  DateTime  @default(now()) @db.Timestamp()
+  endDate    DateTime? @db.Timestamp()
+  currency   Currency  @relation(fields: [currencyId], references: [id])
+  product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Cart {
+  id        String  @id @default(cuid())
+  userId    Int
+  productId String
+  count     Int     @default(1) @db.Integer
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@unique([userId, productId])
+}
+
+model Discount {
+  id        String       @id @default(cuid())
+  code      String       @unique @db.VarChar(256)
+  type      DiscountType
+  value     Float        @db.DoublePrecision
+  limit     Int?         @db.Integer
+  remaining Int?         @db.Integer
+  startDate DateTime     @db.Timestamp()
+  endDate   DateTime?    @db.Timestamp()
 }

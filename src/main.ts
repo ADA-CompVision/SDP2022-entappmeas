@@ -18,7 +18,7 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle("SDP2022 ENTAPPMEAS")
     .setDescription("SDP2022 ENTAPPMEAS API Documentation")
-    .setVersion("1.0.0")
+    .setVersion("2.0.0")
     .addBearerAuth()
     .build();
 
