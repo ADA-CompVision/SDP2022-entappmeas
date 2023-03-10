@@ -1,22 +1,15 @@
-FROM node:16 AS builder
+FROM node:18-alpine
 
-WORKDIR /app
+RUN apk add --no-cache libc6-compat
 
-COPY package*.json ./
-COPY prisma ./prisma/
-
-RUN npm install
-RUN npx prisma generate
+WORKDIR /user/src/app
 
 COPY . .
+ 
+RUN npm install
 
 RUN npm run build
 
-FROM node:16
-
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/dist ./dist
-
 EXPOSE 3000
-CMD ["npm", "run", "start:prod"]
+
+CMD ["npm", "start"]

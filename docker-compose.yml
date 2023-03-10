@@ -1,0 +1,28 @@
+version: "3.8"
+services:
+  postgres:
+    image: postgres:latest
+    networks:
+      - postgres
+    volumes:
+      - /data/postgres:/data/postgres
+    env_file:
+      - docker.env
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gift
+    env_file:
+      - .env.prod
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    networks:
+      - postgres
+
+networks:
+  postgres:
+    driver: bridge

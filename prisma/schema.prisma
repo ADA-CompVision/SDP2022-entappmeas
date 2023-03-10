@@ -8,9 +8,24 @@ datasource db {
 }
 
 enum Role {
-  USER
+  CUSTOMER
   BUSINESS
   ADMIN
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+}
+
+enum OrderStatus {
+  PENDING
+  DELIVERED
+}
+
+enum Gender {
+  MALE
+  FEMALE
 }
 
 enum DiscountType {
@@ -19,15 +34,40 @@ enum DiscountType {
 }
 
 model User {
-  id        Int    @id @default(autoincrement())
-  firstName String @db.VarChar(256)
-  lastName  String @db.VarChar(256)
-  address   String @db.Text
-  phone     String @unique() @db.VarChar(16)
-  email     String @unique() @db.VarChar(256)
-  username  String @unique() @db.VarChar(256)
-  password  String @db.VarChar(256)
-  role      Role   @default(USER)
+  id        Int        @id @default(autoincrement())
+  email     String     @unique() @db.VarChar(256)
+  phone     String     @unique() @db.VarChar(16)
+  password  String     @db.VarChar(256)
+  role      Role
+  confirmed Boolean    @default(false)
+  status    Status     @default(ACTIVE)
+  createdAt DateTime   @default(now()) @db.Timestamp()
+  updatedAt DateTime   @updatedAt @db.Timestamp()
+  customer  Customer?
+  business  Business?
+  image     UserImage?
+}
+
+model UserImage {
+  id     String @id @default(cuid())
+  url    String @db.Text
+  userId Int    @unique
+  user   User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Customer {
+  firstName String
+  lastName  String
+  birthDate DateTime @db.Date
+  gender    Gender
+  userId    Int      @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Business {
+  name   String
+  userId Int    @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Category {
@@ -49,10 +89,13 @@ model Product {
   name              String             @db.VarChar(256)
   description       String             @db.Text
   categoryId        String
+  createdAt         DateTime           @default(now()) @db.Timestamp()
+  updatedAt         DateTime           @updatedAt @db.Timestamp()
   category          Category           @relation(fields: [categoryId], references: [id])
-  prices            Price[]
   productAttributes ProductAttribute[]
-  Cart              Cart[]
+  images            ProductImage[]
+  prices            Price[]
+  cart              Cart[]
 }
 
 model ProductAttribute {
@@ -61,36 +104,35 @@ model ProductAttribute {
   productId   String
   attributeId String
   product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  attribute   Attribute @relation(fields: [attributeId], references: [id])
+  attribute   Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
 }
 
-model Currency {
-  id      String  @id @default(cuid())
-  symbol  String  @db.VarChar(256)
-  acronym String  @db.VarChar(256)
-  name    String  @db.VarChar(256)
-  prices  Price[]
+model ProductImage {
+  id        String  @id @default(cuid())
+  url       String  @db.Text
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Price {
-  id         String    @id @default(cuid())
-  productId  String
-  currencyId String
-  value      Float     @db.DoublePrecision
-  startDate  DateTime  @default(now()) @db.Timestamp()
-  endDate    DateTime? @db.Timestamp()
-  currency   Currency  @relation(fields: [currencyId], references: [id])
-  product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id        String    @id @default(cuid())
+  productId String
+  value     Float     @db.DoublePrecision
+  startDate DateTime  @default(now()) @db.Timestamp()
+  endDate   DateTime? @db.Timestamp()
+  createdAt DateTime  @default(now()) @db.Timestamp()
+  updatedAt DateTime  @updatedAt @db.Timestamp()
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Cart {
-  id        String  @id @default(cuid())
   userId    Int
   productId String
-  count     Int     @default(1) @db.Integer
-  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int     @default(1) @db.Integer
+  orderId   String?
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, productId])
+  @@id([userId, productId])
 }
 
 model Discount {
@@ -102,4 +144,6 @@ model Discount {
   remaining Int?         @db.Integer
   startDate DateTime     @db.Timestamp()
   endDate   DateTime?    @db.Timestamp()
+  createdAt DateTime     @default(now()) @db.Timestamp()
+  updatedAt DateTime     @updatedAt @db.Timestamp()
 }
