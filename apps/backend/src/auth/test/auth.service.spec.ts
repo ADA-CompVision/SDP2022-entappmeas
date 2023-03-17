@@ -1,9 +1,9 @@
+import { MailerModule } from "@nestjs-modules/mailer";
 import { ConfigService } from "@nestjs/config";
 import { JwtModule, JwtService } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 import { Test } from "@nestjs/testing";
 import { Gender, Role, Status, User } from "@prisma/client";
-import { MailModule } from "src/mail/mail.module";
 import { MailService } from "src/mail/mail.service";
 import { PrismaService } from "src/prisma/prisma.service";
 import { UserService } from "src/user/user.service";
@@ -24,7 +24,19 @@ describe("AuthService", () => {
           secret: "JWT_SECRET",
           signOptions: { expiresIn: "7d" },
         }),
-        MailModule,
+        MailerModule.forRoot({
+          transport: {
+            host: "test@test.com",
+            port: 465,
+            auth: {
+              user: "test",
+              pass: "test",
+            },
+          },
+          defaults: {
+            from: "test@test.com",
+          },
+        }),
       ],
       providers: [
         AuthService,
@@ -103,6 +115,15 @@ describe("AuthService", () => {
         status: Status.ACTIVE,
         createdAt: new Date(),
         updatedAt: new Date(),
+        customer: {
+          firstName: "Kanan",
+          lastName: "Ibrahimli",
+          birthDate: new Date(2001, 10, 2),
+          gender: Gender.MALE,
+          userId: 7825,
+        },
+        business: null,
+        image: null,
       };
 
       const result = await authService.login(user);
@@ -130,7 +151,8 @@ describe("AuthService", () => {
       delete user.password;
 
       const accessToken = jwtService.sign(user);
-      const result = await authService.confirmEmail(accessToken);
+      const hash = Buffer.from(accessToken, "utf8").toString("hex");
+      const result = await authService.confirmEmail(hash);
 
       expect(result.user.confirmed).toBe(true);
     });

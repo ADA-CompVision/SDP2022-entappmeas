@@ -15,9 +15,9 @@ services:
       dockerfile: Dockerfile
     image: gift
     env_file:
-      - .env.prod
+      - .env.production
     ports:
-      - "3000:3000"
+      - "80:80"
     depends_on:
       - postgres
     networks:
