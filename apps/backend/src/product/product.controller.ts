@@ -1,57 +1,128 @@
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   NotFoundException,
   Param,
   Patch,
   Post,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { ConfigService } from "@nestjs/config";
+import { FilesInterceptor } from "@nestjs/platform-express";
+import { ApiBearerAuth, ApiConsumes, ApiTags } from "@nestjs/swagger";
 import { Role } from "@prisma/client";
+import { randomUUID } from "crypto";
+import { AccountWithoutPassword } from "local-types";
+import { GetUser } from "src/decorators/get-user.decorator";
 import { Public } from "src/decorators/public.decorator";
 import { Roles } from "src/decorators/roles.decorator";
 import { RoleGuard } from "src/guards/role.guard";
-import { CreateProductDto } from "./dto/create-product.dto";
+import { S3Service } from "src/s3/s3.service";
+import {
+  CreateProductDto,
+  Price,
+  ProductAttribute,
+} from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
 import { ProductService } from "./product.service";
 
 @ApiTags("Product")
-@ApiBearerAuth()
 @Controller("product")
 export class ProductController {
-  constructor(private readonly productService: ProductService) {}
+  constructor(
+    private readonly productService: ProductService,
+    private readonly s3Service: S3Service,
+    private readonly configService: ConfigService,
+  ) {}
 
-  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiConsumes("multipart/form-data")
+  @Roles(Role.ADMIN, Role.BUSINESS)
   @UseGuards(RoleGuard)
+  @UseInterceptors(FilesInterceptor("images"))
   @Post()
-  async create(@Body() createProductDto: CreateProductDto) {
-    const { attributes, prices, images, ...rest } = createProductDto;
+  async create(
+    @GetUser() user: AccountWithoutPassword,
+    @Body() createProductDto: CreateProductDto,
+    @UploadedFiles() images: Array<Express.Multer.File>,
+  ) {
+    const { name, description, categoryId, attributes, prices } =
+      createProductDto;
+
+    const parsedAttributes = attributes
+      ? (JSON.parse(attributes) as ProductAttribute[])
+      : undefined;
+
+    const parsedPrices = prices ? (JSON.parse(prices) as Price[]) : undefined;
+
+    const _images: Array<{ key: string; url: string }> = [];
+
+    try {
+      for (const image of images) {
+        const key = `product-images/${randomUUID()}.${image.originalname
+          .split(".")
+          .pop()}`;
+        const url = `${this.configService.get<string>(
+          "SPACES_CDN_ENDPOINT",
+        )}${key}`;
+
+        await this.s3Service.send(
+          new PutObjectCommand({
+            Bucket: this.configService.get<string>("SPACES_BUCKET"),
+            Key: key,
+            Body: image.buffer,
+            ContentLength: image.size,
+            ACL: "public-read",
+          }),
+        );
+
+        _images.push({ key, url });
+      }
+    } catch {
+      throw new BadRequestException();
+    }
 
     return this.productService.create({
       data: {
-        ...rest,
+        name,
+        description,
+        categoryId,
+        businessUserId: user.role === Role.BUSINESS ? user.id : null,
         productAttributes: {
-          createMany: attributes
+          createMany: parsedAttributes
             ? {
-                data: attributes,
+                data: parsedAttributes,
               }
             : undefined,
         },
         prices: {
-          createMany: prices
+          createMany: parsedPrices
             ? {
-                data: prices,
+                data: parsedPrices,
               }
             : undefined,
         },
         images: {
-          createMany: images
-            ? { data: images.map((url) => ({ url })) }
-            : undefined,
+          createMany:
+            _images.length > 0
+              ? {
+                  data: _images,
+                }
+              : undefined,
         },
+      },
+      include: {
+        category: true,
+        productAttributes: true,
+        prices: true,
+        images: true,
       },
     });
   }
@@ -59,7 +130,15 @@ export class ProductController {
   @Public()
   @Get()
   async findMany() {
-    return this.productService.findMany();
+    return this.productService.findMany({
+      include: {
+        category: true,
+        productAttributes: true,
+        prices: true,
+        images: true,
+        business: true,
+      },
+    });
   }
 
   @Public()
@@ -67,6 +146,13 @@ export class ProductController {
   async findUnique(@Param("id") id: string) {
     const product = await this.productService.findUnique({
       where: { id },
+      include: {
+        category: true,
+        productAttributes: true,
+        prices: true,
+        images: true,
+        business: true,
+      },
     });
 
     if (!product) {
@@ -76,18 +162,21 @@ export class ProductController {
     return product;
   }
 
-  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @ApiConsumes("multipart/form-data")
+  @Roles(Role.ADMIN, Role.BUSINESS)
   @UseGuards(RoleGuard)
+  @UseInterceptors(FilesInterceptor("images"))
   @Patch(":id")
   async update(
+    @GetUser() user: AccountWithoutPassword,
     @Param("id") id: string,
     @Body() updateProductDto: UpdateProductDto,
+    @UploadedFiles() images: Array<Express.Multer.File>,
   ) {
     const product = await this.productService.findUnique({
       where: { id },
       include: {
-        productAttributes: true,
-        prices: true,
         images: true,
       },
     });
@@ -96,50 +185,105 @@ export class ProductController {
       throw new NotFoundException("Product not found");
     }
 
-    const { attributes, prices, images, ...rest } = updateProductDto;
+    if (user.role === Role.BUSINESS && product.businessUserId !== user.id) {
+      throw new ForbiddenException();
+    }
+
+    const { name, description, categoryId, attributes, prices } =
+      updateProductDto;
+
+    const parsedAttributes = attributes
+      ? (JSON.parse(attributes) as ProductAttribute[])
+      : undefined;
+
+    const parsedPrices = prices ? (JSON.parse(prices) as Price[]) : undefined;
+
+    const _images: Array<{ key: string; url: string }> = [];
+
+    try {
+      for (const image of images) {
+        const key = `product-images/${randomUUID()}.${image.originalname
+          .split(".")
+          .pop()}`;
+        const url = `${this.configService.get<string>(
+          "SPACES_CDN_ENDPOINT",
+        )}${key}`;
+
+        await this.s3Service.send(
+          new PutObjectCommand({
+            Bucket: this.configService.get<string>("SPACES_BUCKET"),
+            Key: key,
+            Body: image.buffer,
+            ContentLength: image.size,
+            ACL: "public-read",
+          }),
+        );
+
+        _images.push({ key, url });
+      }
+    } catch {
+      throw new BadRequestException();
+    }
 
     return this.productService.update({
       data: {
-        ...rest,
+        name,
+        description,
+        categoryId,
         productAttributes: {
-          deleteMany: attributes ? {} : undefined,
-          createMany: attributes
+          deleteMany: parsedAttributes ? {} : undefined,
+          createMany: parsedAttributes
             ? {
-                data: attributes,
+                data: parsedAttributes,
               }
             : undefined,
         },
         prices: {
-          deleteMany: prices ? {} : undefined,
-          createMany: prices
+          deleteMany: parsedPrices ? {} : undefined,
+          createMany: parsedPrices
             ? {
-                data: prices,
+                data: parsedPrices,
               }
             : undefined,
         },
         images: {
-          deleteMany: images ? {} : undefined,
-          createMany: images
-            ? {
-                data: images.map((url) => ({ url })),
-              }
-            : undefined,
+          deleteMany: _images.length > 0 ? {} : undefined,
+          createMany:
+            _images.length > 0
+              ? {
+                  data: _images,
+                }
+              : undefined,
         },
       },
       where: { id },
+      include: {
+        category: true,
+        productAttributes: true,
+        prices: true,
+        images: true,
+      },
     });
   }
 
-  @Roles(Role.ADMIN)
+  @ApiBearerAuth()
+  @Roles(Role.ADMIN, Role.BUSINESS)
   @UseGuards(RoleGuard)
   @Delete(":id")
-  async delete(@Param("id") id: string) {
+  async delete(
+    @GetUser() user: AccountWithoutPassword,
+    @Param("id") id: string,
+  ) {
     const product = await this.productService.findUnique({
       where: { id },
     });
 
     if (!product) {
       throw new NotFoundException("Product not found");
+    }
+
+    if (user.role === Role.BUSINESS && product.businessUserId !== user.id) {
+      throw new ForbiddenException();
     }
 
     return this.productService.delete({

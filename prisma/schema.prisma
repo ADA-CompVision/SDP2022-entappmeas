@@ -50,6 +50,7 @@ model User {
 
 model UserImage {
   id     String @id @default(cuid())
+  key    String @db.Text
   url    String @db.Text
   userId Int    @unique
   user   User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -62,12 +63,14 @@ model Customer {
   gender    Gender
   userId    Int      @id
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders    Order[]
 }
 
 model Business {
-  name   String
-  userId Int    @id
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name    String
+  userId  Int       @id
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product[]
 }
 
 model Category {
@@ -88,14 +91,17 @@ model Product {
   id                String             @id @default(cuid())
   name              String             @db.VarChar(256)
   description       String             @db.Text
-  categoryId        String
   createdAt         DateTime           @default(now()) @db.Timestamp()
   updatedAt         DateTime           @updatedAt @db.Timestamp()
+  categoryId        String
+  businessUserId    Int?
   category          Category           @relation(fields: [categoryId], references: [id])
+  business          Business?          @relation(fields: [businessUserId], references: [userId])
   productAttributes ProductAttribute[]
   images            ProductImage[]
   prices            Price[]
   cart              Cart[]
+  orderItems        OrderItem[]
 }
 
 model ProductAttribute {
@@ -109,6 +115,7 @@ model ProductAttribute {
 
 model ProductImage {
   id        String  @id @default(cuid())
+  key       String  @db.Text
   url       String  @db.Text
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -129,7 +136,6 @@ model Cart {
   userId    Int
   productId String
   quantity  Int     @default(1) @db.Integer
-  orderId   String?
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@id([userId, productId])
@@ -146,4 +152,28 @@ model Discount {
   endDate   DateTime?    @db.Timestamp()
   createdAt DateTime     @default(now()) @db.Timestamp()
   updatedAt DateTime     @updatedAt @db.Timestamp()
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  quantity  Int      @default(1) @db.Integer
+  productId String?
+  orderId   String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  order     Order?   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Order {
+  id             String      @id @default(cuid())
+  status         OrderStatus @default(PENDING)
+  total          Float       @db.DoublePrecision
+  discountTotal  Float?      @db.DoublePrecision
+  location       String      @db.Text
+  note           String?     @db.Text
+  deliveredAt    DateTime?
+  items          OrderItem[]
+  customerUserId Int?
+  customer       Customer?   @relation(fields: [customerUserId], references: [userId], onDelete: SetNull)
+  createdAt      DateTime    @default(now()) @db.Timestamp()
+  updatedAt      DateTime    @updatedAt @db.Timestamp()
 }

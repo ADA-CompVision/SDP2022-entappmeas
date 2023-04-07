@@ -3,12 +3,22 @@ import {
   Controller,
   Get,
   HttpCode,
+  Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiBody, ApiProperty, ApiTags } from "@nestjs/swagger";
-import { Role, User } from "@prisma/client";
+import { FileInterceptor } from "@nestjs/platform-express/multer";
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiProperty,
+  ApiTags,
+} from "@nestjs/swagger";
+import { Role } from "@prisma/client";
 import { IsEmail, MaxLength, MinLength } from "class-validator";
 import { AccountWithoutPassword } from "local-types";
 import { GetUser } from "src/decorators/get-user.decorator";
@@ -17,6 +27,7 @@ import { Roles } from "src/decorators/roles.decorator";
 import { LocalAuthGuard } from "src/guards/local-auth.guard";
 import { RoleGuard } from "src/guards/role.guard";
 import { CreateUserDto } from "src/user/dto/create-user.dto";
+import { UpdateUserDto } from "src/user/dto/update-user.dto";
 import { UserService } from "src/user/user.service";
 import { AuthService } from "./auth.service";
 
@@ -64,7 +75,7 @@ export class AuthController {
 
   @ApiBearerAuth()
   @Get("account")
-  async getAccount(@GetUser() user: User) {
+  async getAccount(@GetUser() user: AccountWithoutPassword) {
     if (user) {
       const _user = await this.userService.findUnique({
         where: { id: user.id },
@@ -81,6 +92,22 @@ export class AuthController {
     } else {
       return user;
     }
+  }
+
+  @ApiBearerAuth()
+  @ApiConsumes("multipart/form-data")
+  @UseInterceptors(FileInterceptor("image"))
+  @Patch("account")
+  async update(
+    @GetUser() user: AccountWithoutPassword,
+    @Body() updateUserDto: UpdateUserDto,
+    @UploadedFile() image: Express.Multer.File,
+  ) {
+    return this.authService.updateUser(
+      user.id,
+      { ...updateUserDto, role: undefined, image: undefined },
+      image,
+    );
   }
 
   @Public()
