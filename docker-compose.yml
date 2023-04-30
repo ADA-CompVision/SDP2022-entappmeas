@@ -5,7 +5,7 @@ services:
     networks:
       - postgres
     volumes:
-      - /data/postgres:/data/postgres
+      - pgdata:/var/lib/postgresql/data
     env_file:
       - .env.production
 
@@ -13,11 +13,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: gift
     env_file:
       - .env.production
     ports:
-      - "80:80"
+      - "3000:3000"
     depends_on:
       - postgres
     networks:
@@ -26,3 +25,6 @@ services:
 networks:
   postgres:
     driver: bridge
+
+volumes:
+  pgdata:
